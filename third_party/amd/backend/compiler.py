@@ -1,15 +1,19 @@
-from triton.backends.compiler import BaseBackend, GPUTarget, Language
-from triton._C.libtriton import ir, passes, llvm, amd
-from triton import knobs
+
+import functools
+import hashlib
+import os
+from pathlib import Path
+import re
+import tempfile
+import warnings
+
 from dataclasses import dataclass
 from typing import Any, Dict, Tuple
 from types import ModuleType
-import hashlib
-import tempfile
-import re
-import functools
-import warnings
-from pathlib import Path
+
+from triton.backends.compiler import BaseBackend, GPUTarget, Language
+from triton._C.libtriton import ir, passes, llvm, amd
+from triton import knobs
 
 
 def get_min_dot_size(target: GPUTarget):
@@ -469,15 +473,38 @@ class HIPBackend(BaseBackend):
                 ret = fd_out.read()
         return ret
 
+
+    @staticmethod
+    def make_spirv(src, metadata, options):
+        names = re.findall(r"define amdgpu_kernel void @([a-zA-Z_][a-zA-Z0-9_]*)", src)
+        assert len(names) == 1
+        metadata["name"] = names[0]
+        metadata["binary_ext"] = "spv"
+
+        default = "spirv64v1.6-unknown-unknown"
+        vulkan = "spirv64v1.5-amd-vulkan1.2"
+        target = "spir64-unknown-unknown"
+        spv = amd.translate_llvm_to_spirv(src, target)
+        return spv
+
+
     def add_stages(self, stages, options, language):
+
         if language == Language.TRITON:
             stages["ttir"] = lambda src, metadata: self.make_ttir(src, metadata, options)
             stages["ttgir"] = lambda src, metadata: self.make_ttgir(src, metadata, options)
         elif language == Language.GLUON:
             stages["ttgir"] = lambda src, metadata: self.gluon_to_ttgir(src, metadata, options)
+
         stages["llir"] = lambda src, metadata: self.make_llir(src, metadata, options)
-        stages["amdgcn"] = lambda src, metadata: self.make_amdgcn(src, metadata, options)
-        stages["hsaco"] = lambda src, metadata: self.make_hsaco(src, metadata, options)
+
+        DO_SPIRV = 1
+        if DO_SPIRV:
+            stages["spv"] = lambda src, metadata: self.make_spirv(src, metadata, options)
+        else:
+            stages["amdgcn"] = lambda src, metadata: self.make_amdgcn(src, metadata, options)
+            stages["hsaco"] = lambda src, metadata: self.make_hsaco(src, metadata, options)
+
         if knobs.runtime.add_stages_inspection_hook is not None:
             knobs.runtime.add_stages_inspection_hook(self, stages, options, language, None)
 

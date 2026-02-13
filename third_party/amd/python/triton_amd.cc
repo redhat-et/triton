@@ -2,16 +2,16 @@
 #include "TritonAMDGPUToLLVM/Passes.h"
 #include "TritonAMDGPUToLLVM/TargetUtils.h"
 #include "TritonAMDGPUTransforms/Passes.h"
-#include "amd/include/hipblas_instance.h"
-#include "amd/include/hipblas_types.h"
-#include "lld/Common/Driver.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Dialect/ROCDL/ROCDLToLLVMIRTranslation.h"
 #include "passes.h"
+
+#include "lld/Common/Driver.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IRReader/IRReader.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCCodeEmitter.h"
@@ -30,6 +30,11 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/TargetParser/TargetParser.h"
+
+#include "amd/include/hipblas_instance.h"
+#include "amd/include/hipblas_types.h"
+#include "amd/include/Target/SPIRV/SPIRVTranslation.h"
+
 #include <array>
 #include <optional>
 #include <pybind11/pybind11.h>
@@ -400,6 +405,36 @@ void init_triton_amd(py::module &&m) {
     }
   });
 
+  m.def("translate_llvm_to_spirv",
+      [](const std::string &llvmIR, const std::string &target) -> py::object {
+        std::string obj;
+        {
+          py::gil_scoped_release allow_threads;
+
+          // NOTE(mrodden): not sure if this is necessary but triton and intel both
+          // build the context at the C++ level for some reason
+          llvm::LLVMContext context;
+          std::unique_ptr<llvm::MemoryBuffer> buffer =
+              llvm::MemoryBuffer::getMemBuffer(llvmIR.c_str());
+          llvm::SMDiagnostic error;
+          std::unique_ptr<llvm::Module> mod =
+              llvm::parseIR(buffer->getMemBufferRef(), error, context);
+          if (!mod) {
+            llvm::report_fatal_error(
+                "failed to parse IR: " + error.getMessage() +
+                "lineno: " + std::to_string(error.getLineNo()));
+          }
+
+	  llvm::Triple tt(target.c_str());
+	  mod->setTargetTriple(tt);
+	  //mod->setDataLayout("");
+
+          obj = amd::translate_llir_to_spirv(*mod);
+        }
+        return py::bytes(obj);
+    },
+    py::return_value_policy::take_ownership);
+
   m.def(
       "assemble_amdgcn",
       [](const std::string &assembly, const std::string &arch,
@@ -548,3 +583,5 @@ void init_triton_amd(py::module &&m) {
                   init.dtype, init.out_dtype, alpha, beta);
       });
 }
+
+// vim: sw=2 ts=2 sts=2 et
