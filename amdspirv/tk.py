@@ -40,7 +40,7 @@ def add(x: torch.Tensor, y: torch.Tensor):
 
 
 def run():
-    
+
     torch.manual_seed(0)
 
     size = 98432
@@ -74,10 +74,10 @@ def output_kernels():
 
         out_dir = "./%s" % target.backend
         os.makedirs(out_dir, exist_ok=True)
-        
+
         for k,src in k.asm.items():
             out_path = os.path.join(out_dir, k)
-            print("Outputting %s" % out_path) 
+            print("Outputting %s" % out_path)
             with open(out_path, "wb") as ofd:
                 if isinstance(src, str):
                     ofd.write(src.encode("utf8"))

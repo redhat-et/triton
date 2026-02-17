@@ -8,7 +8,7 @@ if(TRITON_BUILD_PYTHON_MODULE)
   find_package(LLD REQUIRED CONFIG PATHS "${LLD_DIR}" NO_DEFAULT_PATH)
   include_directories(${LLD_INCLUDE_DIRS})
   message(STATUS "Found LLD distro-package @ ${LLD_DIR} and LLD include dirs @ ${LLD_INCLUDE_DIRS}")
-  add_triton_plugin(TritonAMD ${CMAKE_CURRENT_SOURCE_DIR}/python/triton_amd.cc 
+  add_triton_plugin(TritonAMD ${CMAKE_CURRENT_SOURCE_DIR}/python/triton_amd.cc
     LINK_LIBS
     TritonAMDGPUToLLVM
     TritonAMDGPUTransforms

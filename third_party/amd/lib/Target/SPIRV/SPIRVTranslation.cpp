@@ -55,7 +55,7 @@
 //}
 //
 //} // namespace llvm
-//  
+//
 //#endif // LLVM_SPIRV_BACKEND_TARGET_PRESENT
 
 
