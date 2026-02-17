@@ -24,4 +24,12 @@ Use the script at `scripts/compile-triton.sh` to recompile
 
 # running
 
-Use `python amdspirv/tk.py` to run the compile of the test kernel to CUDA, AMD SPIRV, and Intel SPIRV. You can comment out any of these target in the file if you wish.
+Use `python amdspirv/tk.py` to run the compile of the test kernel to CUDA, AMD SPIRV, and Intel SPIRV.
+
+You can comment out any of these targets in the file if you wish.
+
+The "architecture" target for any of the GPUTargets can be changed as well in the `tk.py` file.
+Mainly this would only be useful for the Cuda target, as the SPIRV output from the AMD GPUTarget should be mostly "gfx" level agnotic,
+but there may be some optimizations in the generated LLIR / SPIRV that depend on the "gfx" target.
+
+Intel seems to discover their feature set from the card dynamically at compile/runtime, so target does not seem to matter from testing.
